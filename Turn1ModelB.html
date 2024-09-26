@@ -1,1 +1,134 @@
-T1MB
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stack Tower Game</title>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<style>
+    #gameBoard {
+        width: 300px;
+        height: 300px;
+        border: 2px solid #000;
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+    }
+    .cell {
+        width: 30px;
+        height: 30px;
+        border: 1px solid #eee;
+        background-color: #fff;
+    }
+    .block {
+        background-color: blue;
+    }
+    .special { background-color: gold; }
+    .controls, .info { margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<div id="gameBoard"></div>
+<div class="controls">
+    <button onclick="move('left')">Left</button>
+    <button onclick="rotate()">Rotate</button>
+    <button onclick="move('right')">Right</button>
+    <button onclick="drop()">Drop</button>
+</div>
+<div class="info">
+    Score: <span id="score">0</span> | Next Block: <span id="nextBlock"></span>
+</div>
+
+<script>
+    const grid = Array(10).fill().map(() => Array(10).fill(0));
+    let currentBlock = {shape: [], x: 0, y: 0, type: 'normal'};
+    let nextBlock = generateBlock();
+    let score = 0;
+    const points = {normal: 1, special: 5};
+
+    function generateBlock() {
+        const shapes = [[[1]], [[1,1]], [[1,1,1]], [[1,1],[1,0]]];
+        const type = Math.random() < 0.9 ? 'normal' : 'special';
+        return {shape: shapes[Math.floor(Math.random() * shapes.length)], type: type};
+    }
+
+    function draw() {
+        $('#gameBoard').empty();
+        grid.forEach((row, y) => {
+            row.forEach((cell, x) => {
+                let div = $('<div>').addClass('cell');
+                if (cell) div.addClass(cell === 1 ? 'block' : 'special');
+                $('#gameBoard').append(div);
+            });
+        });
+    }
+
+    function placeBlock() {
+        currentBlock = nextBlock;
+        nextBlock = generateBlock();
+        currentBlock.x = 4; currentBlock.y = 0;
+        if (!canMove(currentBlock, 0, 0)) gameOver();
+    }
+
+    function canMove(block, dx, dy) {
+        return block.shape.every((row, y) => 
+            row.every((cell, x) => 
+                !cell || (block.x + x + dx >= 0 && block.x + x + dx < 10 && block.y + y + dy < 10 && !grid[block.y + y + dy][block.x + x + dx])
+            )
+        );
+    }
+
+    function move(dir) {
+        if (canMove(currentBlock, dir === 'right' ? 1 : -1, 0)) currentBlock.x += dir === 'right' ? 1 : -1;
+        draw();
+    }
+
+    function rotate() {
+        const rotated = currentBlock.shape[0].map((_, i) => currentBlock.shape.map(row => row[i]).reverse());
+        const tempShape = currentBlock.shape;
+        currentBlock.shape = rotated;
+        if (!canMove(currentBlock, 0, 0)) currentBlock.shape = tempShape; // If rotation fails, revert
+        draw();
+    }
+
+    function drop() {
+        while(canMove(currentBlock, 0, 1)) currentBlock.y++;
+        lockBlock();
+    }
+
+    function lockBlock() {
+        currentBlock.shape.forEach((row, y) => 
+            row.forEach((cell, x) => {
+                if(cell && currentBlock.y + y < 10) grid[currentBlock.y + y][currentBlock.x + x] = cell * (currentBlock.type === 'normal' ? 1 : 2);
+            })
+        );
+        checkLines();
+        placeBlock();
+    }
+
+    function checkLines() {
+        let linesCleared = 0;
+        for(let y = 9; y >= 0; y--) {
+            if(grid[y].every(cell => cell)) {
+                grid.splice(y, 1);
+                grid.unshift(Array(10).fill(0));
+                linesCleared++;
+            }
+        }
+        if (linesCleared) {
+            score += (linesCleared * 10) * linesCleared; // Multiplier for multiple lines
+            $('#score').text(score);
+        }
+    }
+
+    function gameOver() {
+        alert('Game Over! Your score: ' + score);
+        // Reset game logic here
+    }
+
+    // Initial draw
+    draw();
+    placeBlock();
+</script>
+
+</body>
+</html>
